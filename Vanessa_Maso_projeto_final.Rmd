@@ -1,0 +1,618 @@
+---
+title: "Projeto final da disciplina FLS6397"
+author: "Vanessa Escolano Maso - Nº USP 8530020"
+date: "24 de julho de 2020"
+output: 
+  html_document:
+      df_print: paged
+bibliography: [introducao.bib, pacotes.bib]
+link-citations: yes
+---
+
+```{r, echo = FALSE}
+#padronizando os outputs desejados para todos os chunks
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+<div style = "text-align: justify"> 
+
+### **Observações**
+
+* Para compilar esse documento verificar se todos os arquivos utilizados no presente trabalho (introducao.bib, pacotes.bib e caso_full.csv) estão no seu computador. Esses arquivos foram mandados no e-mail do professor e também estão [disponíveis no meu github]().
+
+### **1. Instruções**
+
+O presente arquivo html contém o projeto final da disciplina intitulada "Introdução à Análise de Dados, Programação e Visualização para as Ciências Sociais" de código "FLS6397". As instruções para a realização desse projeto encontram-se nessa seção e foram obtidas na [página web da disciplina](https://jonnyphillips.github.io/Ciencia_de_Dados/projeto.html):
+
+  O projeto final é a sua oportunidade para aplicar tudo que você aprendeu na disciplina para os seus próprios dados e pergunta de pesquisa. Não precisa ser um projeto finalizado, e é sempre melhor escolher um tópico simples - o erro mais comum é ser ambicioso demais e tentar incorporar demais dados ou análises. Mas também recomendamos que você prepare algo que será útil para a sua própria pesquisa, pois a oportunidade de explorar dados é uma ótima maneira de se tornar um especialista em seu tópico.
+
+A tarefa é:
+
+* Gerar um **relatório reproduzível em R**
+
+* Explicar brevemente os **objetivos da análise**
+
+* Abrir pelo menos **um banco de dados externo**, ou montar um banco de dados original
+
+* **Manipular, transformar e limpar os dados** para atender os objetivos
+
+* Incorporar pelo menos **duas estatísticas resumidas** no relatório final em *in-line* código
+
+* Gerar pelo menos **uma tabela** bem formatada no relatório final
+
+* Gerar pelo menos **dois gráficos ou mapas** bem formatados no relatório final
+
+* Organizar e **comentar o seu script** para que seja claro o efeito de cada chunk e cada operação
+
+* **Configurar os parâmetros dos chunks** para gerar um relatório limpo e claro
+
+* Submeter o seu script, e o documento final (HMTL/PDF)
+
+O critério de avaliação será a aplicação dos princípios e técnicas discutidos na disciplina, priorizando a clareza e organização do script e as boas práticas da ciência de dados e a programação, e **não** a sofisticação da análise ou o argumento substantivo do relatório final.
+
+**O prazo para submissão é o dia 24 de julho 2020 para o e-mail do professor.**
+
+### **2. Introdução**
+
+  A doença pelo Coronavírus 2019 (*Coronavirus disease* 2019, COVID-19) é uma enfermidade infecciosa causada pelo vírus SARS-CoV-2. Esse vírus pertence à subfamília de vírus *Coronavirinae*, que foi responsável por surtos de doenças infecciosas anteriormente [@feng_sars_2009; @ramadan_middle_2019]. Dois vírus da subfamília *Coronavirinae* já causaram surtos em humanos: *Middle East respiratory syndrome-related coronavirus* (MERS-CoV) durante os anos de 2012 e 2015 [@ramadan_middle_2019] e *Severe acute respiratory syndrome coronavirus* (SARS-CoV) entre 2002 e 2003 [@feng_sars_2009]. O MERS-CoV causa a doença síndrome respiratória do Oriente Médio (*Middle East respiratory syndrome-related*, MERS), enquanto que, o SARS-CoV causa a síndrome respiratória aguda grave (*severe acute respiratory syndrome*, SARS). Os vírus da subfamília *Coronavirinae* possuem um envelope bilipídico e genoma de RNA de fita simples de sentido positivo [@chen_emerging_2020], integrando o Grupo IV da classificação de vírus de Baltimore [@baltimore_expression_1971].
+
+  A COVID-19 teve seu primeiro caso detectado na cidade de Wuhan da China em 1 de dezembro de 2019 e desde então vem se espalhando mundialmente, tendo sido declarada pandêmica em 11 de março de 2020 pela Organização Mundial da Saúde (*World Health Organization*, *WHO*) [@hua_corona_2020]. Hoje, 12/07/2020, temos mais de 12 milhões de casos de COVID-19 confirmados mundialmente, de acordo com o [dashboard da Universidade Johns Hopkins](https://coronavirus.jhu.edu/map.html), que atualiza o número de casos da doença diariamente. Governos do mundo todo têm estabelecido *lockdowns* e quarentenas na tentativa de diminuir o número de novos casos diários de COVID-19. 
+  
+### **3. Objetivos**
+
+  O **objetivo geral** desse trabalho é verificar a situação atual do nosso Estado, Estado de São Paulo - Brasil, na pandemia de COVID-19. 
+
+  Os **objetivos específicos** são:
+
+  * Identificar a quantidade total de casos de COVID-19 confirmados por município no Estado de São Paulo;
+  
+  * Identificar a quantidade de casos de COVID-19 confirmados a cada 100 mil habitantes por município no Estado de São Paulo; 
+  
+  * Identificar o número de novos casos de COVID-19 confirmados por dia no Estado de São Paulo;
+
+  * Comparar o número total de casos de COVID-19 no Estado de São Paulo considerando dados municipais com o número total de casos de COVID-19 no Estado de São Paulo considerando dados estaduais.
+  
+### **4. Pacotes utilizados no projeto**
+
+```{r}
+library(tidyverse)
+library(readr)
+library(dplyr)
+library(magrittr)
+library(rmarkdown)
+library(knitr)
+library(geobr)
+library(tmap)
+library(sf)
+library(ggpmisc)
+```
+
+**Referências dos pacotes:**
+
+  * *tidyverse* [@R-tidyverse]
+  * *readr* [@R-readr]
+  * *dplyr* [@R-dplyr]
+  * *magrittr* [@R-magrittr]
+  * *rmarkdown* [@rmarkdown2018]
+  * *knitr* [@knitr2015]
+  * *geobr* [@R-geobr]
+  * *tmap* [@tmap2018]
+  * *sf* [@R-sf]
+  * *ggpmisc* [@R-ggpmisc]
+
+### **5. Banco de dados utilizados no projeto**
+
+* **Dados de COVID-19 no Brasil:** Os dados foram obtidos da página web [Brasil.io](https://brasil.io/home/). Nessa página são disponibilizados diversos dados públicos, entre eles, os de COVID-19. Os dados de COVID-19 são disponibilizados diariamente por uma iniciativa de 40 voluntários que compilam boletins epidemiológicos das 27 Secretarias Estaduais de Saúde do Brasil. Os dados são disponibilizados por município e também por Estado brasileiro e para cada dia, desde o dia do primeiro caso relatado de COVID-19 no Brasil, dia 25 de fevereiro de 2020.
+
+* **Dados espaciais do Estado de São Paulo em 2018:** O pacote *geobr* [@R-geobr] foi utilizado para obtenção de dados espacias do Estado de São Paulo - Brasil. Os dados espaciais contêm o mapa do Estado de São Paulo e os limites de seus municípios no ano de 2018, que é o dado mais recente disponibilizado pelo pacote. 
+
+### **6. Execução do projeto**
+
+* Os [dados completos foram baixados do site Brasil.io](https://data.brasil.io/dataset/covid19/_meta/list.html). Diversos arquivos são disponibilizados, entre eles, "boletim.csv.gz", "caso.csv.gz", "caso_full.csv.gz", "obito_cartorio.csv.gz". Todos arquivos foram baixados em 13 de julho de 2020. A última atualização dos dados antes de eu baixar os arquivos ocorreu às 07:40:28 de 13 de julho de 2020. Uma vez que os dados são atualizados diariamente, estou disponibilizando [os dados utilizados no meu github](https://github.com/vanessamaso/FLS6397.git). 
+
+* O presente projeto utilizará unicamente os dados do arquivo caso_full.csv.gz, pois esse arquivo contém uma tabela com os dados por município brasileiro por dia para todos os dias possíveis, de acordo com o [FAQ](https://github.com/turicas/covid19-br/blob/master/faq.md#alguns-munic%C3%ADpios-n%C3%A3o-possuem-dados-ou-n%C3%A3o-possuem-dados-para-muitas-datas-como-devo-proceder-para-pegar-o-hist%C3%B3rico). 
+
+* De acordo com o [FAQ sobre os dados de COVID-19](https://github.com/turicas/covid19-br/blob/master/faq.md#as-contagens-estaduais-podem-ser-diferentes-das-municipais), as contagens estaduais podem ser diferentes das municipais, uma vez que durante alguns dias a Secretaria de Saúde de alguns estados parou de divulgar os casos confirmados por município e passou a divulgar somente por Estado. Portanto, de acordo com o [FAQ](https://github.com/turicas/covid19-br/blob/master/faq.md#somei-os-casos-por-munic%C3%ADpio-de-um-estado-e-ele-diverge-do-total-no-estado-o-dado-de-voc%C3%AAs-est%C3%A1-errado-como-posso-consertar), pode acontecer da soma dos casos por município de um Estado divergir do total de números do Estado. 
+
+* Conforme essas informações, optaremos por trabalhar com dados registrados para os municípios quando quisermos saber o número de casos confirmados para cada município do Estado de São Paulo. No entanto, quando quisermos ter um panorama geral do Estado de São Paulo utilizaremos os dados registrados para o Estado.
+
+**6.1 Obtenção dos dados de COVID-19 do Brasil**
+
+* A tabela utilizada nesse tópico é a [caso_full.csv que está disponível no meu github](https://github.com/vanessamaso/FLS6397.git). Conforme descrito acima, foi necessária a disponibilização no meu github por conta das atualizações diárias desses dados. Essa tabela é proveniente do arquivo caso_full.csv.gz do site Brasil-io que foi baixada 13 de julho de 2020. 
+
+* A tabela caso_full tem dados por município brasileiro por dia para todos os dias possíveis, segundo o [FAQ](https://github.com/turicas/covid19-br/blob/master/faq.md#alguns-munic%C3%ADpios-n%C3%A3o-possuem-dados-ou-n%C3%A3o-possuem-dados-para-muitas-datas-como-devo-proceder-para-pegar-o-hist%C3%B3rico). 
+
+* Leitura da tabela caso_full e armazenamento dela em objeto R:
+
+```{r}
+# armazena o banco de dados de casos de COVID-19 no Brasil no objeto covid_brasil 
+covid_brasil <- read_delim("caso_full.csv/caso_full.csv", delim = ",")
+
+# confere o nome das colunas da tabela
+nomes_colunas <- colnames(covid_brasil)
+# nomes_colunas
+# conforme podemos observar, de acordo com as colunas presentes no arquivo caso_full.csv (https://github.com/turicas/covid19-br/blob/master/api.md#caso_full) todas as colunas estão presentes em nosso objeto covid_brasil
+```
+
+**6.2 Extração dos dados de COVID-19 para o Estado de São Paulo por município**
+
+* Os dados do arquivo caso_full foram fornecidos em dois âmbitos, dados por município e por Estado. 
+
+* Os dados municipais e estaduais podem divergir, de modo que a soma de casos municipais pode ser diferente do total do número de casos Estaduais, conforme explicado anteriormente na seção "6. Execução do projeto". Desse modo, nesse tópico escolheremos trabalhar somente com dados municipais, uma vez que queremos utilizar esses dados posteriormente para identificar e mapear o número de casos confirmados de COVID-19 por município no Estado de São Paulo. Podemos identificar se o dado é municipal ou estadual na coluna place_type, conforme consta no [README desse arquivo](https://github.com/turicas/covid19-br/blob/master/api.md#caso_full). Além disso, quando o dado é Estadual, o valor na coluna city está em branco (NA), conforme consta no [README](https://github.com/turicas/covid19-br/blob/master/api.md#caso_full). Desse modo, permaneceremos somente com os dados municipais. Além disso, de acordo com o [README](https://github.com/turicas/covid19-br/blob/master/api.md#caso_full) há valores "Importados/Indefinidos", quando não se sabe em qual município o caso foi confirmado. Portanto, como não sabemos a qual município atribuir os casos "Importados/Indefinidos" iremos retirá-los também.
+
+* Seleciona os dados municipais do Estado de São Paulo: 
+
+```{r}
+# checa os possíveis resultados para place_type
+# com o resultado desse código vemos que tem dados de cidade "city" (350615) e de estado "state" (3298)
+# summary(as.factor(covid_brasil$place_type))
+
+# mantém apenas dados de municípios do estado de SP
+covid_SP <- covid_brasil %>% 
+  # mantém apenas dados do estado de SP
+  filter(state == "SP") %>% 
+  # mantém apenas dados das cidades
+  filter(place_type == "city") 
+
+# retira os casos Importados/Indefinidos
+covid_SP_mun <- covid_SP %>% 
+  filter(city != "Importados/Indefinidos")
+
+# checa se tem alguma cidade sem nome (NA) e se sim, quantas. Essa checagem é importante, pois de acordo com o README linhas que não tem dados na coluna city são estaduais e não queremos dados estaduais. 
+# de acordo com o resultado desse código, todas cidades tem nome
+# table(is.na(covid_SP_mun$city))
+
+# Finalmente estamos com todos os dados municipais do Estado de São Paulo e retiramos todos os dados que são Estaduais ou que não se sabe a cidade que o caso foi confirmado (Importados/Indefinidos).
+```
+
+**6.3 Extração dos dados de COVID-19 para o Estado de São Paulo por município para o último dia disponível no banco de dados**
+
+* Queremos identificar o número total de casos confirmados de COVID-19 por município do Estado de São Paulo até o momento, ou seja, todos os casos registrados desde o início da COVID-19 até o momento em que baixamos os dados. A coluna last_available_confirmed mostra o número total de casos de COVID-19 confirmados até a data da coluna date ou anterior. Os dados podem ser de data anterior porque nem todas as secretarias disponibilizam dados diários. A verdadeira data de obtenção dos dados pode ser checada na coluna last_available_date. Entretanto, os últimos dados disponíveis sempre estarão com date mais recente. Desse modo, a seleção da date mais recente nos possibilitará obter o número total de casos confirmados de COVID-19 por município do Estado de São Paulo até o momento que os dados foram baixados. Essas informações constam no [README do arquivo caso_full](https://github.com/turicas/covid19-br/blob/master/api.md#caso_full).
+
+* Seleciona dados do dia mais recente disponível no banco de dados:
+
+```{r}
+# seleciona apenas os dados da data mais recente 
+covid_SP_mun_recente <- covid_SP_mun %>% 
+  top_n(1, date)
+```
+
+**6.4 Importa o mapa do Estado de São Paulo**
+
+* Queremos fazer mapas com dados de COVID-19 por município do Estado de São Paulo. Portanto, devemos importar um mapa do Estado de São Paulo com as delimitações municipais. 
+
+* Importa os dados espaciais dos municípios do Estado de São Paulo como objetos sf:
+
+```{r, results = "hide"}
+# o results = "hide" na configuração desse chunck impede que apareça "Downloading" no relatório html
+# importa o mapa mais recente do estado de SP com as delimitações dos municípios do pacote geobr
+SP_2018 <- read_municipality(code_muni = "SP", year = 2018)
+```
+
+**6.5 Une os dados de COVID-19 do último dia disponível no banco de dados com o mapa do Estado de São Paulo**
+
+* Queremos representar por meio de mapas a quantidade total de casos confirmados e a quantidade de casos confirmados a cada 100 mil habitantes. A representação será feita para cada município do Estado de São Paulo. Desse modo, devemos unir os bancos de dados de COVID-19 (covid_SP_mun_recente) com o banco de dados espaciais do Estado de São Paulo (SP_2018).
+
+* Une os bancos de dados de COVID-19 e o banco de dados espaciais do Estado de São Paulo:
+
+```{r}
+# verifica a variável chave no banco de dados covid_SP_mun_recente
+# verifica o número de observações do banco de dados covid_SP_mun_recente
+covid_SP_mun_recente_nlinhas <- covid_SP_mun_recente %>%
+  nrow()
+# verifica o número de observações no banco de dados covid_SP_mun_recente após ficar com valores únicos na variável city_ibge_code
+covid_SP_mun_recente_nlinhas_distinct <- covid_SP_mun_recente %>%
+  distinct(city_ibge_code) %>%
+  nrow()
+# verifica se o número de linhas do banco de dados continua o mesmo após a seleção de valores únicos na variável city_ibge_code. O resultado é TRUE, portanto, a variável city_ibge_code é uma variável chave, ou seja, identifica unicamente cada observação no banco de dados covid_SP_mun_recente
+# covid_SP_mun_recente_nlinhas == covid_SP_mun_recente_nlinhas_distinct
+
+
+
+# verifica a variável chave no banco de dados SP_2018
+# verifica a quantidade de observações no banco de dados SP_2018
+SP_2018_nlinhas <- SP_2018 %>%
+  nrow()
+# verifica o número de observações no banco de dados SP_2018 após ficar com valores únicos na variável code_muni
+SP_2018_nlinhas_distinct <- SP_2018 %>%
+  distinct(code_muni) %>%
+  nrow()
+# verifica se o número de linhas do banco de dados continua o mesmo após a seleção de valores únicos na variável code_muni. O resultado é TRUE, portanto, a variável code_muni identifica unicamente cada observação no banco de dados SP_2018
+# SP_2018_nlinhas == SP_2018_nlinhas_distinct
+
+
+# Conforme observamos acima, as colunas city_ibge_code e code_muni identificam unicamente cada observação em seus respectivos bancos de dados. Além disso, a variável city_ibge_code do banco de dados covid_SP_mun_recente tem como valores o código IBGE do município, de acordo com o README (https://github.com/turicas/covid19-br/blob/master/api.md#caso_full) e a variável code_muni de SP_2018 também contém como valores o código IBGE do município. Portanto, essas colunas representam um identificador único e idêntico entre os dois bancos de dados, permitindo sua junção. Desse modo, uniremos os dois bancos de dados pelos códigos do IBGE.
+
+
+# verifica  se há municípios presentes apenas no banco de dados covid_SP_mun_recente
+# de acordo com o resultado, não há municípios presentes em covid_SP_mun_recente ausente em SP_2018
+exclusivo_covid <- covid_SP_mun_recente %>% 
+  anti_join(SP_2018, by = c("city_ibge_code" = "code_muni"))
+
+# verifica  se há municípios presentes apenas no banco de dados SP_2018
+# de acordo com o resultado, há 11 municípios presentes em SP_2018 que estão ausentes em covid_SP_mun_recente. Portanto, há 11 cidades do Estado de São Paulo que não tem dados para COVID-19.
+exclusivo_SP_2018 <- SP_2018 %>% 
+  anti_join(covid_SP_mun_recente, by = c("code_muni" = "city_ibge_code"))
+
+# atribui a um vetor o nome das cidades faltantes para colocar in line code
+cidades_faltantes <- exclusivo_SP_2018 %>% 
+  pull(name_muni)
+
+# Conforme o site https://www.al.sp.gov.br/documentacao/municipios-paulistas/, há 645 municípios no Estado de São Paulo. Portanto, o banco SP_2018 tem todos municípios e há 11 municípios que faltam dados de COVID-19, conforme observado no objeto exclusivo_SP_2018.
+
+# faz um join não espacial
+# incorpora dados de COVID-19 do último dia disponível (covid_SP_mun_recente) no banco de dados do mapa de SP (SP_2018), usando o código do ibge para juntar os bancos de dados
+# agora teremos um banco de 645 linhas com os dados de COVID-19, uma linha para cada município
+covid_SP_mapa <- SP_2018 %>% 
+  left_join(covid_SP_mun_recente, by = c("code_muni" = "city_ibge_code"))
+```
+
+* Com o chunk acima podemos perceber que faltam dados de COVID-19 para 11 cidades do Estado de São Paulo: `r cidades_faltantes`.
+
+**6.6 Tabela representando a quantidade total de casos confirmados de COVID-19 por município do Estado de São Paulo até o último dia disponível no banco de dados**
+
+* Essa tabela permite identificar a quantidade total de casos confirmados de COVID-19 até o dia mais recente do banco de dados. Conforme podemos observar na coluna Data, esses dados são referentes ao dia 12-07-2020. Entretanto, a data verdadeira, ou seja, a data em que esses dados foram registrados, é dia 11-07-2020. 
+
+* O objetivo de construir essa tabela é a utilização dela e do mapa do tópico 6.7 simultaneamente para facilitar a identificação da quantidade total de casos de confirmados de COVID-19 por município do Estado de São Paulo até o dia mais recente do banco de dados. As variáveis que integram essa tabela foram escolhidas de acordo com esse propósito. Portanto, fornecemos dados referentes à identificação do município (Cidade, Código IBGE), identificação do  Estado (Estado), identificação das datas (Data, Data verdadeira), bem como o número total de casos de COVID-19 (Total casos). A seguir, fizemos uma descrição de cada uma das variáveis.
+
+* Variáveis que estão presentes na tabela e suas descrições:
+  
+  * **Cidade**: nome do município;
+  
+  * **Código IBGE**: código IBGE do município;
+  
+  * **Estado**: estado da cidade, que sempre será SP, já que filtramos anteriormente dados para esse Estado;
+  
+  * **Data**: data de coleta dos dados no formato YYYY-MM-DD. É a última data disponível no banco de dados que é 12-07-2020, de acordo com o observado no chunk abaixo;
+  
+  * **Total casos**: número de casos confirmados do último dia disponível, o qual deve ser igual ou anterior à Data. Em casos que o dia é anterior à Data, vemos a data de coleta do dado na coluna Data verdadeira. O número de casos confirmados pode não ser do dia porque nem todas secretarias publicam os dados todos dias;
+  
+  * **Data verdadeira**: data que o dado foi coletado, ou seja, a data a qual o dado realmente se refere, que é 11-07-2020, de acordo com o observado no chunk abaixo;
+
+* Gera tabela com a quantidade total de casos confirmados de COVID-19 por município do Estado de São Paulo para o último dia disponível no banco de dados. A tabela está em ordem decrescente de acordo com a quantidade total de casos confirmados:
+
+```{r}
+# o banco covid_SP_mapa tem colunas diferentes com mesma informação devido à junção dos bancos SP_2018 e covid_SP_mun_recente, por exemplo, name_muni e city e abbrev_state e state. Desse modo, verificaremos se a informação é igual entre essas colunas.
+# verifica se os nomes dos municípios são os mesmos nas colunas city (veio de covid_SP_mun_recente) e name_muni (veio de SP_2018) e que em teoria devem representar a mesma informação, o nome do município
+# de acordo com esse código há 89 cidades com nomes diferentes. Entretanto, ao olharmos o objeto verifica_nome_cidade vemos que essas diferenças se devem a letras maiúsculas e minúsculas, acentuação ou hífen e não a um nome realmente diferente.
+verifica_nome_cidade <- covid_SP_mapa %>%
+  # seleciona apenas observações que name_muni é diferente de city
+  filter(name_muni != city) %>% 
+  # seleciona apenas as colunas name_muni e city para ficar mais fácil de observarmos as possíveis diferenças nos nomes. Olhando o valor dessas colunas lado a lado.
+  select(name_muni, city)
+
+# verifica se os estados são os mesmos nas duas colunas state (veio de covid_SP_mun_recente) e abbrev_state (veio de SP_2018) e que devem representar a mesma informação, o nome do estado, SP
+# de acordo com esse código o nome dos estados está igual nas duas colunas, uma vez que o resultado é um data.frame vazio
+verifica_nome_estado <- covid_SP_mapa %>% 
+  filter(abbrev_state != state)
+
+#Uma vez que os valores para o estado são iguais para abbrev_state e state e são iguais para name_muni e city. Selecionaremos as colunas provenientes do banco SP_2018, abbrev_state e name_muni, para permanecer em nossa tabela que será criada. Isso porque esse banco tem informação para todas as 645 cidades. Se selecionassemos city e state ficariamos com onze observações NAs nos campos de nome da cidade e estado, que são das 11 cidades faltantes no banco de dados de COVID-19.
+
+# cria tabela com as variáveis desejadas
+tabela_1 <- covid_SP_mapa %>%
+  # seleciona as variáveis que permanecerão na tabela
+  select(name_muni, code_muni, abbrev_state, date, last_available_confirmed, last_available_date) %>% 
+  # retira a coluna que tem os dados de geometria
+  # é preciso fazer isso, porque se não o dado de geometria é incluso na tabela, mesmo não sendo selecionado no select
+  st_drop_geometry()
+
+# mostra a tabela no relatório ordenada de acordo com a quantidade total de casos confirmados
+tabela_1 %>% 
+  # ordena a tabela em ordem decrescente de acordo com a quantidade de casos confirmados
+  arrange(desc(last_available_confirmed)) %>% 
+  # renomeia as variáveis para apresentar uma tabela no relatório html com nomes mais intuitivos de variáveis
+   rename(Cidade = name_muni,
+         `Código IBGE` = code_muni,
+         Estado = abbrev_state,
+         Data = date,
+         `Total casos` = last_available_confirmed,
+         `Data verdadeira` = last_available_date)
+
+# verifica as datas da coluna date
+# todas são de 12-07-2020, conforme resultado ao rodar o código
+# há 11 NAs, esses NAs são referentes às 11 cidades que não tinham dados no banco de dados de COVID-19.
+# summary(as.factor(tabela_1$date))
+
+# verifica a data real, usando a coluna last_available_date
+# todas são de 11-07-2020, conforme resultado ao rodar o código
+# há 11 NAs, esses NAs são referentes às 11 cidades que não tinham dados no banco de dados de COVID-19.
+# summary(as.factor(tabela_1$last_available_date))
+```
+
+**6.7 Mapa representando quantidade total de casos confirmados de COVID-19 por município do Estado de São Paulo até o último dia disponível no banco de dados**
+
+* Esse mapa permite identificar a quantidade total de casos confirmados de COVID-19 até o dia mais recente do banco de dados. Esses dados são referentes ao dia 12-07-2020. Entretanto, a data verdadeira, ou seja, a data em que esses dados foram registrados, é dia 11-07-2020. Essas informações referentes às datas foram verificadas no chunk abaixo.
+
+* Esse mapa deve ser observado juntamente com a tabela do tópico 6.6.
+
+* Gera um mapa representando a quantidade total de casos confirmados de COVID-19 por município do Estado de São Paulo no último dia disponível no banco de dados. 
+
+```{r}
+# aprendi a trabalhar com o pacote tmap me baseando nesse tutorial: https://geocompr.robinlovelace.net/adv-map.html#fig:layout2
+
+# imprime mapa no relatório
+covid_SP_mapa %>% 
+  # equivalente a função ggplot()
+  tm_shape() + 
+  # define as bordas do mapa na cor preta
+  tm_borders(col = "black") +
+  # define a cor de preenchimento do mapa de acordo com o número de casos de COVID-19 confirmados por município. Define a palheta de cores utilizada para colorir o mapa e os intervalos que essas cores mudam. Os intervalos foram definidos com base em testes, uma vez que se deixassemos para o próprio tmap definir o gradiente sumia, porque a cidade de São Paulo concentra um número muito grande de casos em comparação às outras, portanto, ficavam todas cidades amarelas e São Paulo vermelho. title define o nome da legenda.
+  tm_fill(col = "last_available_confirmed", palette = "YlOrRd", breaks = c(0, 100, 500, 1000, 2000, 4000, 6000, 8000, 10000, 20000, 152000), title = "Número de casos") +
+  # inclui no mapa os pontos cardeais (norte, sul, leste, oeste) e colaterais (sudeste, nordeste, noroeste, sudoeste)
+  tm_compass(type = "8star") +
+  # adiciona o título do gráfico e define sua posição e tamanho. Define o local da legenda. Define se há contorno, frame, no mapa.
+  tm_layout(main.title = "Número total de casos confirmados de COVID-19 \nno Estado de São Paulo por município até o dia 11-07-2020", main.title.position = c("center", "top"), main.title.size = 1.5, legend.outside = TRUE, frame = FALSE)
+
+# verifica as datas da coluna date
+# todas são de 12-07-2020, conforme resultado ao rodar o código
+# há 11 NAs, esses NAs são referentes às 11 cidades que não tinham dados no banco de dados de COVID-19.
+# summary(as.factor(covid_SP_mapa$date))
+
+# verifica a data real, usando a coluna last_available_date
+# todas são de 11-07-2020, conforme resultado ao rodar o código
+# há 11 NAs, esses NAs são referentes às 11 cidades que não tinham dados no banco de dados de COVID-19.
+# summary(as.factor(covid_SP_mapa$last_available_date))
+```
+
+**6.8 Tabela representando a quantidade total de casos confirmados de COVID-19 a cada 100 mil habitantes por município do Estado de São Paulo até o último dia disponível no banco de dados**
+
+* Essa tabela permite identificar a quantidade total de casos confirmados de COVID-19 a cada 100 mil habitantes até o dia mais recente do banco de dados. Esses dados são referentes ao dia 12-07-2020. Entretanto, a data verdadeira, ou seja, a data em que esses dados foram registrados, é dia 11-07-2020.
+
+* O objetivo de construir essa tabela é a utilização dela e do mapa do tópico 6.9 simultaneamente para facilitar a identificação da quantidade total de casos de confirmados de COVID-19 a cada 100 mil habitantes por município do Estado de São Paulo até o dia mais recente do banco de dados. As variáveis que integram essa tabela foram escolhidas de acordo com esse propósito. Portanto, fornecemos dados referentes à identificação do município (Cidade, Código IBGE), identificação do Estado (Estado), identificação das datas (Data, Data verdadeira), bem como o número total de casos confirmados de COVID-19 a cada 100 mil habitantes (Casos por 100 mil). A seguir, fizemos uma descrição de cada uma das variáveis.
+
+* Variáveis que estão presentes nessa tabela e suas descrições:
+  
+  * **Cidade**: nome do município;
+  
+  * **Código IBGE**: código IBGE do município;
+  
+  * **Estado**: Estado da cidade, que sempre será SP, já que filtramos anteriormente dados para esse Estado;
+  
+  * **Data**: data de coleta dos dados no formato YYYY-MM-DD. É a última data disponível no banco de dados que é 12-07-2020, de acordo com o observado no chunk abaixo;
+  
+  * **Casos por 100 mil**: número de casos confirmados a cada 100 mil habitantes do último dia disponível, o qual deve ser igual ou anterior à data Data. Em casos que o dia é anterior a Data, vemos a data de coleta do dado na coluna Data verdadeira. O número de casos confirmados a cada 100 mil habitantes pode não ser do dia porque nem todas secretarias publicam os dados todos dias;
+  
+  * **Data verdadeira**: data que o dado foi coletado, ou seja, a data a qual o dado realmente se refere, que é 11-07-2020, de acordo com o observado no chunk abaixo;
+
+* Gera tabela com quantidade de casos confirmados de COVID-19 a cada 100 mil habitantes por município do Estado de São Paulo para o último dia disponível no banco de dados. A tabela está em ordem decrescente de acordo com a quantidade de casos confirmados a cada 100 mil habitantes:
+
+```{r}
+# cria tabela com as variáveis desejadas
+tabela_2 <- covid_SP_mapa %>%
+  # seleciona as variáveis que permanecerão na tabela
+  select(name_muni, code_muni, abbrev_state, date, last_available_confirmed_per_100k_inhabitants, last_available_date) %>% 
+  # retira a coluna que tem os dados de geometria
+  # é preciso fazer isso, porque se não o dado de geometria é incluso na tabela, mesmo não sendo selecionado no select
+  st_drop_geometry()
+
+# mostra a tabela no relatório ordenada de acordo com a quantidade total de casos confirmados a cada 100 mil habitantes até o último dia disponível no banco de dados
+tabela_2 %>% 
+  # arredonda o valor da variável last_available_confirmed_per_100k_inhabitants deixando com 2 casas decimais
+  mutate(last_available_confirmed_per_100k_inhabitants = round(last_available_confirmed_per_100k_inhabitants, 2)) %>% 
+  # ordena a tabela em ordem decrescente de acordo com a quantidade de casos a cada 100 mil habitantes
+  arrange(desc(last_available_confirmed_per_100k_inhabitants)) %>%
+  # renomeia as variáveis para que seus nomes fiquem mais intuitivos na tabela do relatório html
+  rename(Cidade = name_muni,
+         `Código IBGE` = code_muni,
+         Estado = abbrev_state,
+         Data = date,
+         `Casos por 100 mil` = last_available_confirmed_per_100k_inhabitants,
+         `Data verdadeira` = last_available_date)
+
+# verifica as datas da coluna date
+# todas são de 12-07-2020, conforme resultado ao rodar o código
+# há 11 NAs, esses NAs são referentes às 11 cidades que não tinham dados no banco de dados de COVID-19.
+# summary(as.factor(tabela_2$date))
+
+# verifica a data real, usando a coluna last_available_date
+# todas são de 11-07-2020, conforme resultado ao rodar o código
+# há 11 NAs, esses NAs são referentes às 11 cidades que não tinham dados no banco de dados de COVID-19.
+# summary(as.factor(tabela_2$last_available_date))
+```
+
+**6.9 Mapa representando quantidade de casos confirmados de COVID-19 a cada 100 mil habitantes por município do Estado de São Paulo até o último dia disponível no banco de dados**
+
+* Esse mapa permite identificar a quantidade total de casos confirmados de COVID-19 a cada 100 mil habitantes até o dia mais recente do banco de dados. Esses dados são referentes ao dia 12-07-2020. Entretanto, a data verdadeira, ou seja, a data em que esses dados foram registrados, é dia 11-07-2020. Essas informações referentes às datas foram verificadas no chunk abaixo.
+
+* Esse mapa deve ser observado juntamente com a tabela do tópico 6.8.
+
+* Gera um mapa representando a quantidade total de casos confirmados de COVID-19 a cada 100 mil habitantes por município do Estado de São Paulo para o último dia disponível no banco de dados.
+
+```{r}
+# imprime mapa no relatório
+covid_SP_mapa %>% 
+  # equivalente ao ggplot()
+  tm_shape() +
+  # adiciona bordas pretas ao mapa
+  tm_borders(col = "black") +
+  # define a cor de preenchimento do mapa de acordo com o número de casos de COVID-19 confirmados a cada 100 mil habitantes por município. Define a palheta de cores utilizada para colorir o mapa. Define o título da legenda.
+  tm_fill(col = "last_available_confirmed_per_100k_inhabitants", palette = "YlOrRd", title = "Número de casos \npor 100 mil habitantes") +
+  # inclui no mapa os pontos cardeais (norte, sul, leste, oeste) e colaterais (sudeste, nordeste, noroeste, sudoeste)
+  tm_compass(type = "8star") +
+  # adiciona o título do mapa e define sua posição e tamanho. Define a localização da legenda. Retira o contorno da área do mapa, frame = FALSE.
+  tm_layout(main.title = "Número de casos de COVID-19 a cada 100 mil habitantes \nno Estado de São Paulo por município dia 11-07-2020", main.title.position = c("center", "top"), main.title.size = 1.5, legend.outside = TRUE, frame = FALSE)
+
+# verifica as datas da coluna date
+# todas são de 12-07-2020, conforme resultado ao rodar o código
+# há 11 NAs, esses NAs são referentes às 11 cidades que não tinham dados no banco de dados de COVID-19.
+# summary(as.factor(covid_SP_mapa$date))
+
+# verifica a data real, usando a coluna last_available_date
+# todas são de 11-07-2020, conforme resultado ao rodar o código
+# há 11 NAs, esses NAs são referentes às 11 cidades que não tinham dados no banco de dados de COVID-19.
+# summary(as.factor(covid_SP_mapa$last_available_date))
+```
+
+**6.10 Extração dos dados de COVID-19 para o Estado de São Paulo considerando dados estaduais**
+
+* Os dados do arquivo caso_full foram fornecidos em dois âmbitos, dados por município e por Estado.
+
+* Os dados municipais e estaduais podem divergir, de modo que a soma de casos municipais de um determinado Estado pode ser diferente do total do número de casos estaduais, conforme explicado anteriormente na seção “6. Execução do projeto”. Desse modo, nesse tópico escolheremos trabalhar somente com dados estaduais, uma vez que queremos utilizar esses dados para ter um panorama da situação do Estado de São Paulo na pandemia de COVID-19. Esses dados serão utilizados para construção de um gráfico de linhas para avaliar se o número de novos casos confirmados de COVID-19 por dia continua em ascenção em nosso Estado.
+
+* Novamente, a coluna place_type será utilizada para identificar se os dados são municipais ou estaduais.
+
+```{r}
+# cria banco de dados de COVID-19 com dados estaduais para o Estado de SP
+covid_SP_state <- covid_brasil %>% 
+  # mantém apenas dados do estado de SP
+  filter(state == "SP") %>% 
+  # mantém apenas dados do nível estadual
+  filter(place_type == "state")
+
+# verifica se há dias duplicados
+covid_SP_state_distinct <- covid_SP_state %>% 
+  # retira possíveis duplicações na data
+  distinct(date)
+# verifica se o número de observações é o mesmo depois de tirar dias duplicados
+# como o resultado é TRUE, significa que não há dias duplicados
+# nrow(covid_SP_state) == nrow(covid_SP_state_distinct)
+
+# verifica se há dados para todos os dias da pandemia, desde o início que foi dia 25 de fevereiro. Portanto 5 dias em fevereiro, março tem 31 dias, abril tem 30, maio tem 31, junho 30 e até dia que obtivemos nossos dados (12 de julho) temos 12 dias em julho
+dias_pandemia <- 5 + 31 + 30 + 31 + 30 + 12
+# verifica se o banco covid_SP_state tem o mesmo número de linhas que a quantidade de dias de pandemia
+# dias_pandemia == nrow(covid_SP_state)
+# Desse modo, concluimos que possivelmente há dados para todos os dias da pandemia
+```
+
+**6.11 Gráfico de linhas representando a quantidade de novos casos confirmados de COVID-19 por dia no Estado de São Paulo**
+
+* O objetivo desse gráfico é observar a quantidade de casos de COVID-19 confirmados a cada dia no Estado de São Paulo desde o primeiro dia da presença da COVID-19 no Estado de São Paulo, 25 de fevereiro de 2020, até o último dia disponível no banco de dados, 12 de julho de 2020.
+
+```{r}
+# aprendi a fazer gráfico de linhas com datas com esse tutorial: http://www.sthda.com/english/articles/32-r-graphics-essentials/128-plot-time-series-data-using-ggplot/
+
+# converte a coluna date para classe character, colocando o resultado na nova coluna data. Fiz essa conversão para depois converter para POSIXct
+covid_SP_state$data <- as.character(covid_SP_state$date)
+
+# converte a coluna data para classe POSIXct. Converti para esse formato porque a função que idenfica picos (stat_peaks) exige essa classe para datas
+covid_SP_state$data <- as.POSIXct(covid_SP_state$data)
+
+# substitui por NA os valores que estão repetidos. Quando temos a variável is_repeated com valor TRUE significa que o dado é repetido da última data, portanto, não temos o número de novos casos por dia. Quando observamos o valor da coluna new_cases para esses casos encontramos sempre o valor 0. Isso pode nos induzir ao erro de achar que naquele dia não houve novos casos de COVID-19. Portanto, trocamos os 0 por NA, ou seja, missing values, que é a representação apropriada para esses casos.
+# coloca como valor NA na coluna new_confirmed se a coluna is_repeated tem valor TRUE, se não, mantém o valor original da coluna new_confirmed
+covid_SP_state$new_confirmed <- ifelse(covid_SP_state$is_repeated == TRUE, NA, covid_SP_state$new_confirmed)
+
+# imprime gráfico de linhas no relatório
+covid_SP_state %>%
+  # a data será usada como nossa variável ordenada, portanto devemos agrupar os dados por data para em seguida resumir por data
+  group_by(data) %>%
+  # calcula o número total de novos casos de COVID-19 por dia e remove os valores NA
+  summarise(total_casos = sum(new_confirmed, na.rm = TRUE)) %>%
+  # abre janela para plotar gráfico
+  ggplot() +
+  # define a data como eixo x e o número total de casos como eixo y
+  # tem apenas um grupo, ou seja, uma linha, group = 1
+  geom_line(aes(x = data, y = total_casos), group = 1) +
+  # define os limites mínimo e máximo do eixo y
+  # o mínimo ao colocar NA deixei para o ggplot definir, o máximo optei por definir em 25 mil para não cortar a data de alguns dos picos do meu gráfico
+  ylim(NA, 25000) +
+  # define o nome do eixo x, y e título
+  labs(x = "Data",
+       y = "Número de novos casos",
+       title = "Número de novos casos de COVID-19 por dia no Estado de São Paulo") +
+  # formata a data que será mostrada no eixo x, definindo o formato DD/MM/YYYY
+  scale_x_datetime(date_labels = "%d/%m/%Y") +
+  # geom_smooth ajuda a observar padrões nos dados plotados. Aqui usaremos para ajudar a verificar se a quantidade de novos casos continua subindo ou estabilizou, verificar a curva de contágio 
+  # level = FALSE retira o intervalo de confiança da curva
+  geom_smooth(aes(x = data, y = total_casos), level = FALSE) +
+  # identifica os y máximos locais. Coloca pontos vermelhos nesses picos
+  stat_peaks(aes(x = data, y = total_casos), color = "red", geom = "point") +
+  # identifica os y máximos locais. Coloca a data em que esses picos ocorreram, assim poderemos identificar dias que tiveram um alto número de novos casos em comparação com os dias próximos a ele. O default da função stat_peaks é estabelecer um pico caso as 2 observações anteriores e as duas seguintes tenham valores menor que a observação. Como eu não tenho tanto conhecimento em epidemiologia para escolher um intervalo mais adequado para estabelecer picos, eu deixei o default da função. A data será colocada de vermelho em um ângulo de 90° e sem deslocamento no eixo vertical em relação ao pico, porém com deslocamento horizontal de -0.1. Define o formato da data. Define o tamanho que a data aparecerá.
+  stat_peaks(aes(x = data, y = total_casos), color = "red", geom = "text", angle = 90, vjust = 0, hjust = -0.1, x.label.fmt = "%d/%m/%Y", size = 3) +
+  # adiciona o tema mínimo
+  theme_minimal() +
+  # centraliza o título do gráfico
+  theme(plot.title = element_text(hjust = 0.5)) +
+  # coloca o texto do eixo x em 90° para facilitar a identificação da data no gráfico
+  theme(axis.text.x = element_text(angle = 90, vjust = 0, hjust = 0))
+```
+
+* De acordo com o gráfico de linhas acima, podemos observar uma oscilação na quantidade de novos casos confirmados diários ao longo do tempo. Porém, ao traçarmos uma curva em cima do gráfico de linhas para facilitar a identificação de uma tendência por parte dos dados, vemos que aparentemente o número de novos casos diários continua em ascenção, uma vez que não vemos um platô na curva representada pela cor azul. Isso nos indica que um possível afrouxamento das medidas de isolamento social a nível estadual poderia representar riscos de saúde à população do Estado de São Paulo. 
+
+**6.12 Identificação da quantidade total de casos confirmados de COVID-19 para o Estado de São Paulo considerando dados municipais versus Identificação da quantidade total de casos confirmados de COVID-19 para o Estado de São Paulo considerando dados estaduais**
+
+* O objetivo dessa análise é verificar se o número de casos computados no nível municipal para todo o Estado de São Paulo difere do número de casos computados a nível estadual para o Estado de São Paulo, conforme o [FAQ](https://github.com/turicas/covid19-br/blob/master/faq.md#as-contagens-estaduais-podem-ser-diferentes-das-municipais) alertou para essa possibilidade. 
+
+**6.12.a Identificação da quantidade total de casos confirmados de COVID-19 para o Estado de São Paulo considerando dados municipais**
+
+```{r}
+# inicialmente, pegamos o banco de dados do dia mais recente disponível no banco de dados para o Estado de São Paulo e que tem os dados no nível municipal e não tem os casos "Importados/Indefinidos" (covid_SP_mun_recente) para contabilizar o número total de casos de COVID-19 no Estado de SP considerando dados municipais e que tenham cidade determinada
+total_covid_SP_municipios_det <- covid_SP_mun_recente %>%
+  # agrupa por data, que na verdade só tem uma, o último dia disponível
+  group_by(date) %>%
+  # obtém a quantidade total de casos no estado de SP de acordo com dados municipais
+  summarise(total_casos_SP = sum(last_available_confirmed, na.rm = TRUE)) %>%
+  # armazena em um vetor o número total de casos do estado de SP
+  pull(total_casos_SP)
+
+# partimos do banco de dados do estado de SP com dados municipais em que ainda não tinhamos excluído os casos "Importados/Indefinidos" (covid_SP) para gerar um banco com somente as observações que tenham city como "Importados/Indefinidos"
+covid_mun_indet <- covid_SP %>% 
+  # seleciona apenas as observações que tem na coluna city "Importados/Indefinidos"
+  filter(city == "Importados/Indefinidos")
+
+# identifica se a coluna last_available_confirmed está acumulando o número de casos quando city tem valor "Importados/Indefinidos"
+# ao fazer isso, vemos que as datas não estão em ordem da mais recente para a mais antiga, como estaria, se o número de casos apresentado em last_available_confirmed para a date mais recente representasse o total do número de casos desde o início da pandemia até o último dia disponível no banco de dados
+# desse modo, concluímos que provavelmente cada número de last_available_confirmed se refere apenas ao dia que consta na coluna date. Portanto, temos que somar o last_available_confirmed para termos a quantidade total de casos de COVID-19 até o momento 
+# covid_mun_indet %>%
+#   arrange(desc(last_available_confirmed)) %>%
+#   pull(date)
+
+# calcula o número total de casos de COVID-19 que não foram atribuídos a nenhuma cidade ("Importados/Indefinidos")
+total_covid_SP_municipios_indet <- covid_mun_indet %>% 
+  # agrupa por cidade, que nesse caso são todas "Importados/Indefinidos", uma vez que filtramos anteriormente
+  group_by(city) %>% 
+  # calcula o total de casos de COVID-19 do estado de SP registrados em âmbito municipal que tem como cidade "Importados/Indefinidos"
+  summarise(total_indet = sum(last_available_confirmed, na.rm = TRUE)) %>% 
+  # transforma em vetor o valor total
+  pull(total_indet)
+
+# calcula o total de casos de COVID-19 registrados em nível municipal
+# soma a quantidade total de casos de COVID-19 registrados em nível municipal que tenham os municípios identificados (total_covid_SP_municipios_det) com a quantidade total de casos de COVID-19 registrados em nível municipal que tenham municípios desconhecidos, "Importados/Indefinidos" (total_covid_SP_municipios_indet)
+total_covid_SP_municipios <- total_covid_SP_municipios_det + total_covid_SP_municipios_indet
+```
+
+* A quantidade total de casos de COVID-19 no Estado de São Paulo computados no âmbito municipal e atribuídas a municípios específicos é de `r format(total_covid_SP_municipios_det, scientific = FALSE)`. A quantidade total de casos casos de COVID-19 no Estado de São Paulo computados no âmbito municipal e não atribuídos a municípios específicos é de `r total_covid_SP_municipios_indet`. Portanto, a quantidade total de casos computados no nível municipal considerando municípios determinados e não determinados é `r format(total_covid_SP_municipios, scientific = FALSE)`.
+
+**6.12.b Identificação da quantidade total de casos confirmados de COVID-19 para o Estado de São Paulo considerando dados estaduais**
+
+```{r}
+# identifica a quantidade total de casos de COVID-19 confirmados nos dados referentes ao nível estadual
+# parte do banco de dados no nível estadual (covid_SP_state)
+total_covid_SP_estadual <- covid_SP_state %>%
+  # filtra para a data 2020-07-12, que é a mais recente disponível no banco de dados
+  filter(date == "2020-07-12") %>%
+  # transforma em vetor a quantidade total de casos confirmados
+  pull(last_available_confirmed)
+```
+
+* A quantidade total de casos de COVID-19 no Estado de São Paulo computados no nível estadual é de `r format(total_covid_SP_estadual, scientific = FALSE)`. 
+
+**6.12.c Identificação da diferença dos números computados para a quantidade total de casos confirmados de COVID-19 para o Estado de São Paulo entre os níveis municipais e estaduais**
+
+```{r}
+# calcula a diferença entre a quantidade de casos computados no nível municipal e estadual
+diferenca <- total_covid_SP_municipios - total_covid_SP_estadual
+```
+
+* Há `r diferenca` casos de COVID-19 confirmados no Estado de São Paulo a mais ao considerar dados do nível municipal em comparação com a quantidade de casos de COVID-19 confirmados no Estado de São Paulo ao considerar dados do nível Estadual.
+
+### **7. Sugestões para aprimorar o banco de dados e sua documentação**
+
+* Quando lemos o [FAQ](https://github.com/turicas/covid19-br/blob/master/faq.md#alguns-munic%C3%ADpios-n%C3%A3o-possuem-dados-ou-n%C3%A3o-possuem-dados-para-muitas-datas-como-devo-proceder-para-pegar-o-hist%C3%B3rico), é dito que há dados para todos municípios todos os dias no arquivo caso_full e isso não é verdadeiro. Um dos problemas que encontramos foi a ausência de dados de 11 cidades do Estado de São Paulo para o último dia disponível no banco de dados: `r cidades_faltantes`. Sugiro adicionar os dados referentes a essas 11 cidades no banco de dados. Caso isso não seja possível, colocar no [README](https://github.com/turicas/covid19-br/blob/master/api.md#caso_full) uma explicação sobre o que ocorreu com os dados dessas cidades. 
+
+* Os casos "Importados/Indefinidos" devem ser explicados mais detalhadamente no [README](https://github.com/turicas/covid19-br/blob/master/api.md#caso_full). Ficou claro ao analisarmos os dados que observações que têm a coluna city com esse valor não seguem o padrão das observações onde city é uma cidade específica. Isso porque quando é uma cidade específica a coluna last_available_confirmed tem o número de casos acumulados ao longo do tempo, desde o primeiro caso da cidade. Entretanto, quando a coluna city tem valor "Importados/Indefinidos" percebemos que não há esse acúmulo de casos ao longo do tempo. Na verdade, a coluna last_available_confirmed parece se referir somente ao dia de date quando city é "Importados/Indefinidos".
+
+* Por fim, a diferença no número de casos encontrados ao compararmos dados municipais e estaduais me pareceu grande. O [FAQ comenta sobre essa possibilidade](https://github.com/turicas/covid19-br/blob/master/faq.md#as-contagens-estaduais-podem-ser-diferentes-das-municipais) e diz que isso pode ocorrer por 2 motivos: "1. Secretaria Estadual de Saúde parou de divulgar dados por município e está somente divulgando por Estado (isso aconteceu com SP durante alguns dias); 2. A Secretaria Estadual de Saúde divulgou um dado incorreto (às vezes acontece)". O primeiro motivo não justifica a diferença no número de casos que observamos, pois o número de casos municipais é maior que o número de casos estaduais, sendo que os dados municipais tem `r diferenca` casos contabilizados a mais que os estaduais. Portanto, parece que a divergência ocorreu pelo segundo motivo, ou seja, houve divulgação de dados incorretos. Esse conflito no número de casos me levantou o questionamento de até onde esses dados estão sendo computados corretamente e podemos confiar neles, o que é problemático em vista da situação do Brasil na pandemia. O acesso aos dados públicos de forma transparente e com dados corretos é fundamental para sabermos o que está acontecendo no Brasil e em que momento estamos da pandemia.
+
+</div>
+
+<div style = "text-align: center"> 
+
+### **Referências**
+
+</div>
+
+```{r bib, include=FALSE}
+
+# cria um arquivo bib para os pacotes utilizados nesse projeto
+knitr::write_bib(c(.packages(), "base", "rmarkdown"), file = "pacotes.bib")
+```
